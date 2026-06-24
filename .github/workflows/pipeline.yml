@@ -9,12 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       # ✅ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # ✅ SCA - Scan dependencies (user + order)
+      # ✅ SCA - npm audit (user + order)
       - name: SCA - npm audit
         run: |
           cd user-service
@@ -42,11 +41,7 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             aquasec/trivy image order-service
 
-      # ✅ Done
-      - name: Pipeline finished
-        run: echo "CI + Security checks completed ✅"
-
-        # ✅ Setup kubectl
+      # ✅ Setup kubectl
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
@@ -63,3 +58,7 @@ jobs:
           kubectl apply -f user-service.yaml
           kubectl apply -f order-deployment.yaml
           kubectl apply -f order-service.yaml
+
+      # ✅ Done
+      - name: Pipeline finished
+        run: echo "CI + Security + Deployment completed ✅"
