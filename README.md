@@ -2,3 +2,4 @@
 trigger again
 trigger fix
 clean kubeconfig
+clean kubeconfig
