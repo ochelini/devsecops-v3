@@ -19,22 +19,28 @@ jobs:
         run: |
           cd user-service
           npm install
-          npm audit || true
+          npm audit --audit-level=high
 
           cd ../order-service
           npm install
-          npm audit || true
+          npm audit --audit-level=high
 
       - name: Build Docker images
         run: |
-          docker build -t user-service ./user-service
-          docker build -t order-service ./order-service
+          docker build -t user-service:${{ github.sha }} ./user-service
+          docker build -t order-service:${{ github.sha }} ./order-service
 
-      - name: Scan Docker images with Trivy
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image user-service
+
+     - name: Scan Docker images with Trivy
+       run: |
+       docker run --rm \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL user-service:${{ github.sha }}
+
+     docker run --rm \
+      -v /var/run/docker.sock:/var/run/docker.sock \
+      aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL order-service:${{ github.sha }}      
+
 
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -50,11 +56,11 @@ jobs:
           ${{ secrets.KUBE_CONFIG }}
           EOF
 
-    - name: Setup Helm
-      uses: azure/setup-helm@v3    
+     - name: Setup Helm
+  uses: azure/setup-helm@v3
 
-  - name: Deploy with Helm
-        run: |
+- name: Deploy with Helm
+  run: |
     helm upgrade --install user ./devsecops-chart \
       --set name=user-service \
       --set image.repository=user-service \
@@ -64,5 +70,8 @@ jobs:
       --set name=order-service \
       --set image.repository=order-service \
       --set image.tag=${{ github.sha }}
+
+
+
       - name: Finish
         run: echo "Pipeline completed ✅"
