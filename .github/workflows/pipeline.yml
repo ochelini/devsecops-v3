@@ -50,12 +50,19 @@ jobs:
           ${{ secrets.KUBE_CONFIG }}
           EOF
 
-      - name: Deploy to AKS
-        run: |
-          kubectl apply -f user-deployment.yaml
-          kubectl apply -f user-service.yaml
-          kubectl apply -f order-deployment.yaml
-          kubectl apply -f order-service.yaml
+    - name: Setup Helm
+      uses: azure/setup-helm@v3    
 
+  - name: Deploy with Helm
+        run: |
+    helm upgrade --install user ./devsecops-chart \
+      --set name=user-service \
+      --set image.repository=user-service \
+      --set image.tag=${{ github.sha }}
+
+    helm upgrade --install order ./devsecops-chart \
+      --set name=order-service \
+      --set image.repository=order-service \
+      --set image.tag=${{ github.sha }}
       - name: Finish
         run: echo "Pipeline completed ✅"

@@ -1,0 +1,7 @@
+
+name: user-service
+
+image:
+  repository: user-service
+  tag: latest
+
