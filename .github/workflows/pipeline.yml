@@ -5,16 +5,17 @@ on:
     branches:
       - main
       - develop
-      - feature/user-api
 
 jobs:
   security-and-build:
     runs-on: ubuntu-latest
 
     steps:
+      # ✅ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ✅ Install Node dependencies + security scan
       - name: SCA - npm audit
         run: |
           cd user-service
@@ -25,30 +26,32 @@ jobs:
           npm install
           npm audit --audit-level=high
 
+      # ✅ Build Docker images (versioned)
       - name: Build Docker images
         run: |
           docker build -t user-service:${{ github.sha }} ./user-service
           docker build -t order-service:${{ github.sha }} ./order-service
 
-
-     - name: Scan Docker images with Trivy
-       run: |
-       docker run --rm \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL user-service:${{ github.sha }}
-
-     docker run --rm \
-      -v /var/run/docker.sock:/var/run/docker.sock \
-      aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL order-service:${{ github.sha }}      
-
+      # ✅ Scan images with Trivy (FAIL if vulnerable)
+      - name: Scan Docker images with Trivy
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL user-service:${{ github.sha }}
 
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy image order-service
+            aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL order-service:${{ github.sha }}
 
+      # ✅ Setup kubectl
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
 
+      # ✅ Setup Helm
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+
+      # ✅ Configure kubeconfig (using your existing secret)
       - name: Set kubeconfig
         run: |
           mkdir -p $HOME/.kube
@@ -56,22 +59,19 @@ jobs:
           ${{ secrets.KUBE_CONFIG }}
           EOF
 
-     - name: Setup Helm
-  uses: azure/setup-helm@v3
+      # ✅ Deploy using Helm (VERSIONED)
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install user ./devsecops-chart \
+            --set name=user-service \
+            --set image.repository=user-service \
+            --set image.tag=${{ github.sha }}
 
-- name: Deploy with Helm
-  run: |
-    helm upgrade --install user ./devsecops-chart \
-      --set name=user-service \
-      --set image.repository=user-service \
-      --set image.tag=${{ github.sha }}
+          helm upgrade --install order ./devsecops-chart \
+            --set name=order-service \
+            --set image.repository=order-service \
+            --set image.tag=${{ github.sha }}
 
-    helm upgrade --install order ./devsecops-chart \
-      --set name=order-service \
-      --set image.repository=order-service \
-      --set image.tag=${{ github.sha }}
-
-
-
+      # ✅ Done
       - name: Finish
-        run: echo "Pipeline completed ✅"
+        run: echo "✅ Pipeline completed successfully"
